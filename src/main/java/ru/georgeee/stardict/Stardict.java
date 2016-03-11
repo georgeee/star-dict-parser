@@ -92,7 +92,7 @@ public class Stardict {
             while (matcher.find()) {
                 List<String> subResult = new ArrayList<>();
                 String dtrn = matcher.group(1);
-                dtrn = dtrn.replaceAll("<.*>", "");
+                dtrn = stripTags(dtrn);
                 String[] parts = dtrn.split("[,;]");
                 for (String s : parts) {
                     s = s.trim();
@@ -107,9 +107,38 @@ public class Stardict {
                         subResult.add(s);
                     }
                 }
-                result.add(subResult);
+                if (!subResult.isEmpty()) {
+                    result.add(subResult);
+                }
             }
             return result;
         }
+    }
+
+    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)[^>]+>([^<]*)");
+
+    private static String stripTags(String dtrn) {
+        Matcher matcher = TAG_PATTERN.matcher(dtrn);
+        int firstAngle = dtrn.indexOf('<');
+        if (firstAngle == -1) {
+            return dtrn;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(dtrn.substring(0, firstAngle));
+        int d = 0;
+        while (matcher.find()) {
+            String g2 = matcher.group(1);
+            String g3 = matcher.group(2);
+            sb.append(" ");
+            if (g2.equals("/")) {
+                --d;
+            } else {
+                ++d;
+            }
+            if (d == 0) {
+                sb.append(g3);
+            }
+        }
+        return sb.toString().replaceAll("\\s+", " ");
     }
 }
