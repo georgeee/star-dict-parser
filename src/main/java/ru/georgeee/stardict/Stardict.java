@@ -85,11 +85,12 @@ public class Stardict {
             return dictProvider.getWordEntry(start, length);
         }
 
-        public List<String> getTranslations() {
+        public List<List<String>> getTranslations() {
             String entry = getEntry();
             Matcher matcher = DTRN_PATTERN.matcher(entry);
-            List<String> result = new ArrayList<>();
+            List<List<String>> result = new ArrayList<>();
             while (matcher.find()) {
+                List<String> subResult = new ArrayList<>();
                 String dtrn = matcher.group(1);
                 dtrn = dtrn.replaceAll("<.*>", "");
                 String[] parts = dtrn.split("[,;]");
@@ -100,12 +101,13 @@ public class Stardict {
                     }
                     if (s.contains("(-)")) {
                         String[] subParts = s.split("\\(-\\)", 2);
-                        result.add(subParts[1]);
-                        result.add(subParts[0] + subParts[1]);
+                        subResult.add(subParts[1]);
+                        subResult.add(subParts[0] + subParts[1]);
                     } else {
-                        result.add(s);
+                        subResult.add(s);
                     }
                 }
+                result.add(subResult);
             }
             return result;
         }
