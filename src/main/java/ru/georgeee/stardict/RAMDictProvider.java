@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-class RAMDict implements Dict {
+class RAMDictProvider implements DictProvider {
     private final byte [] bytes;
 
-    public RAMDict(Path dictPath) throws IOException {
+    public RAMDictProvider(Path dictPath) throws IOException {
         bytes = Files.readAllBytes(dictPath);
     }
 

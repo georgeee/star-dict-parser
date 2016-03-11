@@ -1,5 +1,5 @@
 package ru.georgeee.stardict;
 
-interface Dict {
+interface DictProvider {
     String getWordEntry(int start, int len) throws StarDictException;
 }

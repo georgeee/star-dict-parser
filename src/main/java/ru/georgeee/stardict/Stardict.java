@@ -1,68 +1,35 @@
 package ru.georgeee.stardict;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.Map.Entry;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class StarDictParser {
+public class Stardict {
 
-    public static final int MAX_RESULT = 40;
-    private static final Comparator<Map.Entry<String, WordPosition>> WORD_COMPARATOR = new Comparator<Map.Entry<String, WordPosition>>() {
-        public int compare(Map.Entry<String, WordPosition> ea, Map.Entry<String, WordPosition> eb) {
-            return ea.getKey().compareToIgnoreCase(eb.getKey());
-        }
-    };
     private static final int IDX_BUFFER_SIZE = 1024 * 1024;
     private final Map<String, WordPosition> words = new HashMap<>();
-    private final Dict dict;
+    private final DictProvider dictProvider;
 
-    private StarDictParser(Path idxPath, Dict dict) throws IOException {
-        this.dict = dict;
+    private Stardict(Path idxPath, DictProvider dictProvider) throws IOException {
+        this.dictProvider = dictProvider;
         loadIndexFile(idxPath);
     }
 
-    public static StarDictParser createRAF(Path idxPath, File dictFile) throws IOException {
-        return new StarDictParser(idxPath, new RAFDict(dictFile));
+    public static Stardict createRAF(Path idxPath, Path dictPath) throws IOException {
+        return new Stardict(idxPath, new RAFDictProvider(dictPath.toFile()));
     }
 
-    public static StarDictParser createRAM(Path idxPath, File dictFile) throws IOException {
-        return new StarDictParser(idxPath, new RAMDict(dictFile.toPath()));
-    }
-
-    public List<Map.Entry<String, WordPosition>> searchWord(String term) {
-        List<Entry<String, WordPosition>> resa = new ArrayList<>();
-        List<Entry<String, WordPosition>> resb = new ArrayList<>();
-
-        int i;
-        for (Map.Entry<String, WordPosition> en : words.entrySet()) {
-            if (en.getKey() == null) {
-                throw new IllegalStateException("Null word key");
-            }
-            i = en.getKey().toLowerCase().indexOf(term);
-            if (i == 0) {
-                resa.add(en);
-            } else if (i > 0 && resb.size() < MAX_RESULT) {
-                resb.add(en);
-            }
-            if (resa.size() > MAX_RESULT) {
-                break;
-            }
-        }
-
-        Collections.sort(resa, WORD_COMPARATOR);
-        Collections.sort(resb, WORD_COMPARATOR);
-
-        if (resa.size() < MAX_RESULT) {
-            int need = MAX_RESULT - resa.size();
-            if (need > resb.size()) {
-                need = resb.size();
-            }
-            resa.addAll(resb.subList(0, need));
-        }
-        return resa;
+    public static Stardict createRAM(Path idxPath, Path dictPath) throws IOException {
+        return new Stardict(idxPath, new RAMDictProvider(dictPath));
     }
 
     private void loadIndexFile(Path idxPath) throws IOException {
@@ -102,6 +69,8 @@ public class StarDictParser {
         return words;
     }
 
+    private static final Pattern DTRN_PATTERN = Pattern.compile("<dtrn>(.*)</dtrn>");
+
     public class WordPosition {
 
         private final int start;
@@ -113,7 +82,32 @@ public class StarDictParser {
         }
 
         public String getEntry() throws StarDictException {
-            return dict.getWordEntry(start, length);
+            return dictProvider.getWordEntry(start, length);
+        }
+
+        public List<String> getTranslations() {
+            String entry = getEntry();
+            Matcher matcher = DTRN_PATTERN.matcher(entry);
+            List<String> result = new ArrayList<>();
+            while (matcher.find()) {
+                String dtrn = matcher.group(1);
+                dtrn = dtrn.replaceAll("<.*>", "");
+                String[] parts = dtrn.split("[,;]");
+                for (String s : parts) {
+                    s = s.trim();
+                    if (s.isEmpty()) {
+                        continue;
+                    }
+                    if (s.contains("(-)")) {
+                        String[] subParts = s.split("\\(-\\)", 2);
+                        result.add(subParts[1]);
+                        result.add(subParts[0] + subParts[1]);
+                    } else {
+                        result.add(s);
+                    }
+                }
+            }
+            return result;
         }
     }
 }
