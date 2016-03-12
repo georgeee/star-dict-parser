@@ -1,5 +1,7 @@
 package ru.georgeee.stardict;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -121,7 +123,7 @@ public class Stardict {
         Matcher matcher = TAG_PATTERN.matcher(dtrn);
         int firstAngle = dtrn.indexOf('<');
         if (firstAngle == -1) {
-            return dtrn;
+            return unescape(dtrn);
         }
         StringBuilder sb = new StringBuilder();
         sb.append(dtrn.substring(0, firstAngle));
@@ -139,6 +141,11 @@ public class Stardict {
                 sb.append(g3);
             }
         }
-        return sb.toString().replaceAll("\\s+", " ");
+        return unescape(sb.toString());
+    }
+
+    private static String unescape(String s) {
+        String result = StringEscapeUtils.unescapeXml(s);
+        return result.replaceAll("\\s+", " ");
     }
 }
