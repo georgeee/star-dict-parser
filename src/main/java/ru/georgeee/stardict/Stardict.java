@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -72,6 +69,7 @@ public class Stardict {
     }
 
     private static final Pattern DTRN_PATTERN = Pattern.compile("<dtrn>(.*)</dtrn>");
+    private static final Pattern BRACES_PATTERN = Pattern.compile("^(.*)\\(([^\\)]+)\\)(.*)$");
 
     public class WordPosition {
 
@@ -87,12 +85,12 @@ public class Stardict {
             return dictProvider.getWordEntry(start, length);
         }
 
-        public List<List<String>> getTranslations() {
+        public List<Set<String>> getTranslations() {
             String entry = getEntry();
             Matcher matcher = DTRN_PATTERN.matcher(entry);
-            List<List<String>> result = new ArrayList<>();
+            List<Set<String>> result = new ArrayList<>();
             while (matcher.find()) {
-                List<String> subResult = new ArrayList<>();
+                Set<String> subResult = new LinkedHashSet<>();
                 String dtrn = matcher.group(1);
                 dtrn = stripTags(dtrn);
                 String[] parts = dtrn.split("[,;]");
@@ -106,7 +104,20 @@ public class Stardict {
                         subResult.add(subParts[1]);
                         subResult.add(subParts[0] + subParts[1]);
                     } else {
-                        subResult.add(s);
+                        Matcher m = BRACES_PATTERN.matcher(s);
+                        if (m.find()) {
+                            String g1 = m.group(1).trim();
+                            String g2 = m.group(2).trim();
+                            String g3 = m.group(3).trim();
+                            String _g1 = (g1.isEmpty() ? "" : g1 + " ");
+                            String _g2 = (g2.isEmpty() ? "" : g2 + " ");
+                            String s1 = _g1 + g3;
+                            String s2 = (_g1 + _g2 + g3).trim();
+                            subResult.add(s1);
+                            subResult.add(s2);
+                        } else {
+                            subResult.add(s);
+                        }
                     }
                 }
                 if (!subResult.isEmpty()) {
